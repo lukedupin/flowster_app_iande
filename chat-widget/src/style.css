@@ -1,0 +1,30 @@
+@import 'github-markdown-css/github-markdown-light.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@keyframes customBounce {
+  0%, 100% {
+    transform: none;
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+  25% {
+    transform: translateY(-35%);               /* full height */
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: none;
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+  75% {
+    transform: translateY(-20%);                /* half height */
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+}
+
+/* 2️⃣  Utility class that uses the keyframes */
+.custom-bounce {
+  animation: customBounce 1.5s infinite;
+}

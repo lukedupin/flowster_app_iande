@@ -1,0 +1,7 @@
+{
+    "title": "I & E",
+    "components": [
+        {"name": "I & E", "comp": "IAndE", "path": "/i_e/", "icon": "CurrencyDollarIcon"}
+    ]
+}
+
