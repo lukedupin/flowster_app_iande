@@ -1,4 +1,4 @@
-from agents.script_agent import ScriptState
+from flowster.tools.script_agent import ScriptState
 
 sandler_convo = {
     "default": "bonding_and_rapport",

@@ -6,20 +6,19 @@ from fastapi import FastAPI, Form, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, RedirectResponse
 from starlette.staticfiles import StaticFiles
 
-from agents.content_agent import content_agent
-from core.script_state import update_main_dict
+from flowster.tools.content_agent import content_agent
+from flowster.tools.script_state import update_main_dict
 from flowster import FlowSheet, FlowSessionJwt
 from flowster.core import util
 from flowster.stdlib.ai.llm import chat_stream, chat_result, chat
 import json, requests, datetime, asyncio
 
-from agents.chat_agent import chat_agent
-from agents.common import extract_dicts_from_text
-from agents.script_agent import ScriptState
-from agents.script_agent import script_agent, ScriptState
-from core.util import sse_stream, context_to_kwargs, snake_to_title
-#from flow_sheets.iande.sandler_lite_convo import sandler_convo
-from flow_sheets.iande.chat_script import chat_script as sandler_convo
+from flowster.tools.chat_agent import chat_agent
+from flowster.tools.common import extract_dicts_from_text
+from flowster.tools.script_agent import script_agent, ScriptState
+from flowster.core.util import sse_stream, context_to_kwargs, snake_to_title
+#from iande.sandler_lite_convo import sandler_convo
+from iande.chat_script import chat_script as sandler_convo
 
 router = APIRouter()
 FLOW_PROFILE = None
@@ -31,7 +30,7 @@ def setup( settings ):
     JWT_AUTH = settings.JWT_AUTH
 
 def gen_flow_sheet( header ):
-    with open("flow_sheets/bluesky/meta.json") as handle:
+    with open("iande/meta.json") as handle:
         meta = json5.load(handle)
         return FlowSheet(
             meta['title'],

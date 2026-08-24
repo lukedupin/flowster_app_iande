@@ -1,11 +1,11 @@
 import React, {useState, useRef, useEffect, forwardRef} from 'react'
 import 'github-markdown-css/github-markdown-light.css';
-import { ChatTextArea } from "../../src/components/chat_text_area.jsx";
-import {Conversation} from "../../src/components/conversation.jsx";
-import * as Util from "../../src/helpers/util.js";
+import { ChatTextArea } from "../src/components/chat_text_area.jsx";
+import {Conversation} from "../src/components/conversation.jsx";
+import * as Util from "../src/helpers/util.js";
 import Markdown from "react-markdown";
-import {AssistantCard} from "../../src/cards/assistant_card.jsx";
-import {MarkdownViewer} from "../../src/components/markdown_viewer.jsx";
+import {AssistantCard} from "../src/cards/assistant_card.jsx";
+import {MarkdownViewer} from "../src/components/markdown_viewer.jsx";
 
 export const InsightCard = props => {
     const {message, showToast} = props

@@ -1,5 +1,5 @@
-from agents.script_agent import ScriptState
-from core.script_state import build_section, build_transition, build_prompt, build_ai_prompt, json_to_markdown
+from flowster.tools.script_agent import ScriptState
+from flowster.tools.script_state import build_section, build_transition, build_prompt, build_ai_prompt, json_to_markdown
 from flowster.stdlib.ai import llm
 
 """
