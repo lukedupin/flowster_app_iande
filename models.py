@@ -137,3 +137,42 @@ class BlogCache(models.Model):
                 super(Admin, self).save_model(request, obj, form, change)
 
         return Admin
+
+
+class VoiceClone(models.Model):
+    id                  = models.AutoField(primary_key=True)
+
+    uid                 = models.UUIDField(db_index=True, unique=True, default=uuid.uuid4, editable=False, help_text="A unique identifier for this voice clone")
+    name                = models.CharField(max_length=128, help_text="Display name for this voice")
+    file                = models.FileField(upload_to='iande/voices', help_text="Reference audio clip used for voice cloning")
+    exaggeration        = models.FloatField(default=2.4, help_text="Chatterbox exaggeration parameter")
+    cfg_weight          = models.FloatField(default=1.5, help_text="Chatterbox cfg weight parameter")
+
+    updated_on          = models.DateTimeField(auto_now=True)
+    created_on          = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = 'iande'
+
+    #Returns a friendly name for the admin interface
+    def __str__(self):
+        return self.name
+
+    # Convert my data to json
+    def toJson(self):
+        return {
+            'uid':          str(self.uid),
+            'name':         self.name,
+            'file':         self.file.url if self.file else None,
+            'exaggeration': self.exaggeration,
+            'cfg_weight':   self.cfg_weight,
+        }
+
+    @staticmethod
+    def customAdmin():
+        class Admin(admin.ModelAdmin):
+            list_display = ('name', 'exaggeration', 'cfg_weight', 'created_on')
+            fields = ('uid', 'name', 'file', 'exaggeration', 'cfg_weight')
+            readonly_fields = ('uid', 'created_on', 'updated_on',)
+
+        return Admin
