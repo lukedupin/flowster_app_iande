@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { MessageCircleMore, X, Send } from 'lucide-react'
-import * as Util from "../../../../src/helpers/util.js"
+import * as Util from "../../../src/helpers/util.js"
 
 import { marked } from 'marked';
 //import 'github-markdown-css/github-markdown.css';
 import 'github-markdown-css/github-markdown-light.css';
-import {Conversation} from "../../../../src/components/conversation.jsx";
+import {Conversation} from "../../../src/components/conversation.jsx";
 import {useHeaderInView} from "./header_in_view.jsx";
 //import {InsightCard} from "../../index.jsx";
 import {DEFAULT_CONFIG} from "./config.jsx";
