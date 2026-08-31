@@ -1,8 +1,16 @@
-import React, {useEffect, useState} from 'react'
+import React, {useEffect, useRef, useState} from 'react'
 import {useNavigate} from "react-router-dom"
-import {PlusIcon, MicrophoneIcon, PlayIcon} from "@heroicons/react/24/outline"
+import {PlusIcon, MicrophoneIcon, PlayIcon, ArrowDownTrayIcon} from "@heroicons/react/24/outline"
 import {EmptyList} from "../../src/components/empty_list.jsx"
 import * as Util from "../../src/helpers/util.js"
+
+const PlayingBars = () => (
+    <div className="flex h-4 items-end gap-0.5">
+        <span className="w-1 animate-bounce rounded-sm bg-white" style={{height: '60%', animationDelay: '0ms'}} />
+        <span className="w-1 animate-bounce rounded-sm bg-white" style={{height: '100%', animationDelay: '150ms'}} />
+        <span className="w-1 animate-bounce rounded-sm bg-white" style={{height: '75%', animationDelay: '300ms'}} />
+    </div>
+)
 
 const AVATAR_COLORS = [
     'bg-red-500',
@@ -22,6 +30,12 @@ export const VoicesPage = props => {
     const [loaded, setLoaded] = useState(false)
     const [testVoiceId, setTestVoiceId] = useState(null)
     const [testText, setTestText] = useState('')
+    const [playingUid, setPlayingUid] = useState(null)
+    const audioRef = useRef(null)
+    const [testPlaying, setTestPlaying] = useState(false)
+    const testAudioRef = useRef(null)
+    const testAbortRef = useRef(null)
+    const [testDownloading, setTestDownloading] = useState(false)
 
     useEffect(() => {
         fetch('/api/iande/list_voices')
@@ -40,8 +54,23 @@ export const VoicesPage = props => {
 
     const handleCreate = () => navigate('/i_e/voices/new')
 
+    const stopPlaying = () => {
+        if (audioRef.current) {
+            audioRef.current.pause()
+            audioRef.current = null
+        }
+        setPlayingUid(null)
+    }
+
     const handlePlay = async (e, voice) => {
         e.stopPropagation()
+
+        if (playingUid === voice.uid) {
+            stopPlaying()
+            return
+        }
+
+        stopPlaying()
 
         const resp = await fetch('/api/iande/voice_file', {
             method: 'POST',
@@ -56,12 +85,102 @@ export const VoicesPage = props => {
         }
 
         const blob = new Blob([Util.base64ToArrayBuffer(js.audio)], {type: `audio/${js.type}`})
-        new Audio(URL.createObjectURL(blob)).play()
+        const audio = new Audio(URL.createObjectURL(blob))
+        audio.onended = () => stopPlaying()
+        audioRef.current = audio
+        setPlayingUid(voice.uid)
+        audio.play()
+    }
+
+    const stopTestPlaying = () => {
+        if (testAbortRef.current) {
+            testAbortRef.current.abort()
+            testAbortRef.current = null
+        }
+        if (testAudioRef.current) {
+            testAudioRef.current.pause()
+            testAudioRef.current = null
+        }
+        setTestPlaying(false)
+    }
+
+    const handleTestDownload = () => {
+        const voice = voices.find(v => v.uid === testVoiceId)
+        if (!voice || !testText.trim()) {
+            return
+        }
+
+        setTestDownloading(true)
+
+        fetch('/api/iande/voice_gen', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({uid: voice.uid, text: testText, type: 'mp3'}),
+        })
+            .then(resp => resp.json())
+            .then(js => {
+                if (!js.successful) {
+                    showToast?.(js.reason, 'error')
+                    return
+                }
+
+                const blob = new Blob([Util.base64ToArrayBuffer(js.audio)], {type: `audio/${js.type}`})
+                const url = URL.createObjectURL(blob)
+                const link = document.createElement('a')
+                link.href = url
+                link.download = `${voice.name}.${js.type}`
+                link.click()
+                URL.revokeObjectURL(url)
+            })
+            .catch(() => showToast?.('Failed to generate speech', 'error'))
+            .finally(() => setTestDownloading(false))
     }
 
     const handleTestPlay = () => {
+        if (testPlaying) {
+            stopTestPlaying()
+            return
+        }
+
         const voice = voices.find(v => v.uid === testVoiceId)
-        showToast?.(`${voice?.name} says: "${testText}"`, 'success')
+        if (!voice || !testText.trim()) {
+            return
+        }
+
+        setTestPlaying(true)
+
+        const controller = new AbortController()
+        testAbortRef.current = controller
+
+        fetch('/api/iande/voice_gen', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({uid: voice.uid, text: testText, type: 'mp3'}),
+            signal: controller.signal,
+        })
+            .then(resp => resp.json())
+            .then(js => {
+                testAbortRef.current = null
+
+                if (!js.successful) {
+                    showToast?.(js.reason, 'error')
+                    setTestPlaying(false)
+                    return
+                }
+
+                const blob = new Blob([Util.base64ToArrayBuffer(js.audio)], {type: `audio/${js.type}`})
+                const audio = new Audio(URL.createObjectURL(blob))
+                audio.onended = () => stopTestPlaying()
+                testAudioRef.current = audio
+                audio.play()
+            })
+            .catch(err => {
+                testAbortRef.current = null
+                if (err.name !== 'AbortError') {
+                    showToast?.('Failed to generate speech', 'error')
+                }
+                setTestPlaying(false)
+            })
     }
 
     return (
@@ -94,8 +213,13 @@ export const VoicesPage = props => {
                         <div
                             className={`group/play flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}
                             onClick={e => handlePlay(e, voice)}>
-                            <MicrophoneIcon className="h-5 w-5 group-hover/play:hidden" />
-                            <PlayIcon className="h-5 w-5 hidden group-hover/play:block" />
+                            {playingUid === voice.uid
+                                ? <PlayingBars />
+                                : <>
+                                    <MicrophoneIcon className="h-5 w-5 group-hover/play:hidden" />
+                                    <PlayIcon className="h-5 w-5 hidden group-hover/play:block" />
+                                </>
+                            }
                         </div>
 
                         <div className="min-w-0 flex-1">
@@ -120,11 +244,27 @@ export const VoicesPage = props => {
                     </select>
 
                     <button
+                        onClick={handleTestDownload}
+                        disabled={!testVoiceId || !testText.trim() || testDownloading}
+                        title="Download mp3"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <ArrowDownTrayIcon className="h-4 w-4" />
+                    </button>
+
+                    <button
                         onClick={handleTestPlay}
-                        disabled={!testVoiceId || !testText.trim()}
+                        disabled={(!testVoiceId || !testText.trim()) && !testPlaying}
                         className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <PlayIcon className="h-4 w-4" />
-                        Play
+                        {testPlaying
+                            ? <>
+                                <PlayingBars />
+                                Stop
+                            </>
+                            : <>
+                                <PlayIcon className="h-4 w-4" />
+                                Play
+                            </>
+                        }
                     </button>
                 </div>
 

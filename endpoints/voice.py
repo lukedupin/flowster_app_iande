@@ -7,21 +7,19 @@ from multiprocessing import shared_memory
 from asgiref.sync import sync_to_async
 from django.core.files.base import ContentFile
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
 
 from flowster.core import util
 from flowster.tts import create_tts, pcm_to_mp3
+from iande.endpoints import _err, _succ
 from iande.models import VoiceClone
 
 router = APIRouter()
+FLOW_PROFILE = None
 
 
-def _err(reason):
-    return JSONResponse(content={"successful": False, "reason": reason})
-
-
-def _succ(**kwargs):
-    return JSONResponse(content={"successful": True, **kwargs})
+def setup(settings):
+    global FLOW_PROFILE
+    FLOW_PROFILE = settings.FLOW_PROFILE
 
 
 @router.get("/list_voices")
@@ -134,15 +132,22 @@ def chunk_text(text, limit=500):
 async def voice_gen(request: Request):
     """Generate speech audio from text using a saved VoiceClone.
 
-    Body: {"voice_model": "iande-01", "text": "...", "type": "wav"}
+    Body: {"voice_model": "iande-01", "text": "..." | ["...", "..."], "type": "wav"}
+
+    When `text` is an array, a separate audio file is generated per entry (returned
+    as an array under `audio`), but `create_tts` is only invoked once for the whole
+    request.
     """
     body = await request.json()
     uid: str = body.get('uid', '')
     voice_model: str = body.get('voice_model', '')
-    text: str = body.get('text', '')
-    out_type: str = body.get('type', 'wav')
+    text = body.get('text', '')
+    out_type: str = 'mp3' if body.get('type') == 'mp3' else 'wav'
 
-    if (not uid and not voice_model) or not text:
+    is_batch = isinstance(text, list)
+    texts = text if is_batch else [text]
+
+    if (not uid and not voice_model) or not texts or not all(texts):
         return _err("uid or voice_model, and text, are required")
 
     try:
@@ -153,39 +158,43 @@ async def voice_gen(request: Request):
     except VoiceClone.DoesNotExist:
         return _err(f"Unknown voice '{uid or voice_model}'")
 
-    if (_streamer := create_tts({
-        'type': 'chatterbox-turbo',
+    tts_config = {
+        **(FLOW_PROFILE['tts:default'] or {}),
         'voice_clone': voice.file.path,
         'exaggeration': voice.exaggeration,
         'cfg_weight': voice.cfg_weight,
-    })).is_err():
+    }
+    if (_streamer := create_tts(tts_config)).is_err():
         return _err(_streamer.unwrap_err())
     streamer = _streamer.ok_value
 
     streamer.start()
     try:
-        pcm_chunks = []
-        for chunk in chunk_text(text):
-            await sync_to_async(streamer.text_queue.put)(chunk)
-            mem_info = await sync_to_async(streamer.audio_queue.get)()
+        audio_list = []
+        for one_text in texts:
+            pcm_chunks = []
+            for chunk in chunk_text(one_text):
+                await sync_to_async(streamer.text_queue.put)(chunk)
+                mem_info = await sync_to_async(streamer.audio_queue.get)()
 
-            mem = shared_memory.SharedMemory(name=mem_info['name'])
-            pcm_chunks.append(bytes(mem.buf[:mem_info['payload']]))
-            mem.close()
-        pcm_bytes = b"".join(pcm_chunks)
+                mem = shared_memory.SharedMemory(name=mem_info['name'])
+                pcm_chunks.append(bytes(mem.buf[:mem_info['payload']]))
+                mem.close()
+            pcm_bytes = b"".join(pcm_chunks)
+
+            if out_type == 'mp3':
+                audio_bytes = pcm_to_mp3(pcm_bytes, streamer.hertz())
+            else:
+                wav_buffer = io.BytesIO()
+                with wave.open(wav_buffer, 'wb') as wav_file:
+                    wav_file.setnchannels(1)
+                    wav_file.setsampwidth(2)
+                    wav_file.setframerate(streamer.hertz())
+                    wav_file.writeframes(pcm_bytes)
+                audio_bytes = wav_buffer.getvalue()
+
+            audio_list.append(base64.b64encode(audio_bytes).decode('ascii'))
     finally:
         await sync_to_async(streamer.close)()
 
-    if out_type == 'mp3':
-        audio_bytes = pcm_to_mp3(pcm_bytes, streamer.hertz())
-    else:
-        out_type = 'wav'
-        wav_buffer = io.BytesIO()
-        with wave.open(wav_buffer, 'wb') as wav_file:
-            wav_file.setnchannels(1)
-            wav_file.setsampwidth(2)
-            wav_file.setframerate(streamer.hertz())
-            wav_file.writeframes(pcm_bytes)
-        audio_bytes = wav_buffer.getvalue()
-
-    return _succ(audio=base64.b64encode(audio_bytes).decode('ascii'), type=out_type)
+    return _succ(audio=audio_list if is_batch else audio_list[0], type=out_type)
