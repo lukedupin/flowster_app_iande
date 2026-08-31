@@ -143,7 +143,9 @@ class VoiceClone(models.Model):
     id                  = models.AutoField(primary_key=True)
 
     uid                 = models.UUIDField(db_index=True, unique=True, default=uuid.uuid4, editable=False, help_text="A unique identifier for this voice clone")
+
     name                = models.CharField(max_length=128, help_text="Display name for this voice")
+    voice_model         = models.CharField(unique=True, max_length=64, help_text="Snake case model name")
     file                = models.FileField(upload_to='iande/voices', help_text="Reference audio clip used for voice cloning")
     exaggeration        = models.FloatField(default=2.4, help_text="Chatterbox exaggeration parameter")
     cfg_weight          = models.FloatField(default=1.5, help_text="Chatterbox cfg weight parameter")
@@ -163,7 +165,8 @@ class VoiceClone(models.Model):
         return {
             'uid':          str(self.uid),
             'name':         self.name,
-            'file':         self.file.url if self.file else None,
+            'voice_model':  self.voice_model,
+            #'file':         self.file.url if self.file else None,
             'exaggeration': self.exaggeration,
             'cfg_weight':   self.cfg_weight,
         }
@@ -172,7 +175,7 @@ class VoiceClone(models.Model):
     def customAdmin():
         class Admin(admin.ModelAdmin):
             list_display = ('name', 'exaggeration', 'cfg_weight', 'created_on')
-            fields = ('uid', 'name', 'file', 'exaggeration', 'cfg_weight')
+            fields = ('uid', 'name', 'voice_model', 'file', 'exaggeration', 'cfg_weight')
             readonly_fields = ('uid', 'created_on', 'updated_on',)
 
         return Admin
