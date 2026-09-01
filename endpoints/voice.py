@@ -8,6 +8,7 @@ from asgiref.sync import sync_to_async
 from django.core.files.base import ContentFile
 from fastapi import APIRouter, Request
 
+from flowster import FlowProfile, FlowSheet
 from flowster.core import util
 from flowster.tts import create_tts, pcm_to_mp3
 from iande.endpoints import _err, _succ
@@ -19,7 +20,7 @@ FLOW_PROFILE = None
 
 def setup(settings):
     global FLOW_PROFILE
-    FLOW_PROFILE = settings.FLOW_PROFILE
+    FLOW_PROFILE = FlowProfile(settings.FLOW_PROFILE)
 
 
 @router.get("/list_voices")

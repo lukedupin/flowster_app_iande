@@ -1,0 +1,20 @@
+[Unit]
+Description=Runs the I&E server relay
+Documentation=/opt/flowster_clients/i_and_e/README.md
+After=network.target
+
+[Service]
+Type=simple
+User=ldupin
+ExecStart=/opt/flowster_clients/i_and_e/sandbox/venv/bin/python main.py
+Restart=always
+WorkingDirectory=/opt/flowster_clients/i_and_e/sandbox
+Environment="PATH=/opt/flowster_clients/i_and_e/sandbox/venv/bin:/usr/bin"
+Environment=PYTHONUNBUFFERED=1
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=flowsters_ie_server
+
+[Install]
+WantedBy=multi-user.target
