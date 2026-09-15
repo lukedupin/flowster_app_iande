@@ -1,18 +1,31 @@
-import React, {useState} from 'react'
+import React, {useEffect, useState} from 'react'
 import {useNavigate} from "react-router-dom"
 import {PlusIcon} from "@heroicons/react/24/outline"
+import * as Util from "../../src/helpers/util.js"
 import {ContextCreateModal} from "../components/context_create_modal.jsx"
 import {formatLength} from "../components/format_size.js"
+import {makeUniqueKey} from "../components/dummy_contexts.js"
 
 export const ContextsPage = props => {
-    const {contexts, showToast} = props
-    const onCreate = props.onCreate || (() => {})
+    const {showToast} = props
     const navigate = useNavigate()
+    const [contexts, setContexts] = useState([])
     const [createOpen, setCreateOpen] = useState(false)
 
+    useEffect(() => {
+        Util.fetch_js('/api/iande/contexts', {}, js => {
+            setContexts(js.contexts)
+        }, showToast)
+    }, [])
+
     const handleCreate = title => {
-        onCreate(title)
-        setCreateOpen(false)
+        const key = makeUniqueKey(title, contexts)
+
+        Util.fetch_js('/api/iande/context/create', {title, key, content: ''}, js => {
+            setContexts(prev => [...prev, js.context])
+            setCreateOpen(false)
+            navigate(`/i_e/contexts/${js.context.id}`)
+        }, showToast)
     }
 
     return (

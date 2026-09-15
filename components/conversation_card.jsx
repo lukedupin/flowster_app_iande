@@ -1,15 +1,19 @@
 import React, {useEffect, useState} from 'react'
 import {useNavigate} from "react-router-dom"
 import * as Util from "../../src/helpers/util.js"
-import {Pagination, paginateArray} from "../../src/components/pagination.jsx"
-import {STATUS, buildDummyConversations, initials} from "./dummy_conversations.js"
+import {useStore} from "../../src/store.js"
+import {Pagination} from "../../src/components/pagination.jsx"
+import {STATUS, initials} from "./dummy_conversations.js"
 
-const PER_PAGE_OPTIONS = [10, 25, 50]
+const PER_PAGE_OPTIONS = [10, 50, 100]
+
+const statusFor = (label) => Object.values(STATUS).find(s => s.label === label) || {label: label || 'Unknown', color: 'bg-gray-400'}
 
 const buildContextMarkdown = (conversations) => {
     const statusCounts = {}
     for (const convo of conversations) {
-        statusCounts[convo.status] = (statusCounts[convo.status] || 0) + 1
+        const label = convo.profile?.status || 'Unknown'
+        statusCounts[label] = (statusCounts[label] || 0) + 1
     }
 
     const lines = [
@@ -18,11 +22,12 @@ const buildContextMarkdown = (conversations) => {
         `**Total conversations:** ${conversations.length}`,
         '',
         '## By Status',
-        ...Object.entries(statusCounts).map(([status, count]) => `- ${STATUS[status]?.label || status}: ${count}`),
+        ...Object.entries(statusCounts).map(([label, count]) => `- ${label}: ${count}`),
         '',
         '## Conversations',
         ...conversations.map(convo =>
-            `- ${convo.name} (${STATUS[convo.status]?.label || convo.status}, ${convo.chat_count} chats, ${convo.date}): ${convo.summary}`
+            `- ${convo.profile?.name || 'Unknown'} (${convo.profile?.status || 'Unknown'}, ${convo.conversation.length} messages, `
+            + `${new Date(convo.created_on).toLocaleDateString()}): ${convo.summary}`
         ),
     ]
 
@@ -33,11 +38,19 @@ export const ConversationCard = props => {
     const {showToast} = props
     const onContextChange = props.onContextChange || (() => {})
     const navigate = useNavigate()
-    const [conversations] = useState(buildDummyConversations)
+    const setSelectedConversation = useStore(state => state.setSelectedConversation)
+
+    const [conversations, setConversations] = useState([])
+    const [total, setTotal] = useState(0)
     const [page, setPage] = useState(1)
     const [perPage, setPerPage] = useState(PER_PAGE_OPTIONS[0])
 
-    const page_conversations = paginateArray(conversations, page, perPage)
+    useEffect(() => {
+        Util.fetch_js('/api/iande/conversations', {page, per_page: perPage}, js => {
+            setConversations(js.conversations)
+            setTotal(js.total)
+        }, showToast)
+    }, [page, perPage])
 
     useEffect(() => {
         onContextChange(buildContextMarkdown(conversations))
@@ -57,7 +70,7 @@ export const ConversationCard = props => {
                     <select
                         value={perPage}
                         onChange={handlePerPageChange}
-                        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        className="w-36 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         {PER_PAGE_OPTIONS.map(n => (
                             <option key={n} value={n}>{n} per page</option>
                         ))}
@@ -65,30 +78,39 @@ export const ConversationCard = props => {
                 </div>
 
                 <ul role="list" className="divide-y divide-gray-200">
-                    {page_conversations.map(convo => (
-                        <li key={convo.id}
-                            className="flex items-center gap-4 px-4 py-4 sm:px-6 hover:bg-gray-50 cursor-pointer"
-                            onClick={() => navigate(`/i_e/conversation/${convo.id}`)}>
-                            <div className={Util.classNames(
-                                "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white",
-                                STATUS[convo.status].color
-                            )}>
-                                {initials(convo.name)}
-                            </div>
+                    {conversations.map(convo => {
+                        const status = statusFor(convo.profile?.status)
 
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium text-gray-900 truncate">{convo.name}</p>
-                                <p className="text-sm text-gray-500 truncate">{convo.summary}</p>
-                                <p className="text-xs text-gray-400 mt-1">{convo.chat_count} chats · {convo.date}</p>
-                            </div>
-                        </li>
-                    ))}
+                        return (
+                            <li key={convo.uid}
+                                className="flex items-center gap-4 px-4 py-4 sm:px-6 hover:bg-gray-50 cursor-pointer"
+                                onClick={() => {
+                                    setSelectedConversation(convo)
+                                    navigate(`/i_e/conversation/${convo.uid}`)
+                                }}>
+                                <div className={Util.classNames(
+                                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white",
+                                    status.color
+                                )}>
+                                    {initials(convo.profile?.name || '?')}
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-gray-900 truncate">{convo.profile?.name || 'Unknown'}</p>
+                                    <p className="text-sm text-gray-500 truncate">{convo.summary}</p>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        {convo.conversation.length} messages · {new Date(convo.created_on).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            </li>
+                        )
+                    })}
                 </ul>
 
                 <Pagination
                     page={page}
                     per_page={perPage}
-                    total={conversations.length}
+                    total={total}
                     onPage={setPage}
                 />
             </div>

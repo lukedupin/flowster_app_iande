@@ -51,6 +51,8 @@ const ASSISTANT_LINES = [
     "Yes, we offer joint policies as well as individual ones for each spouse.",
 ]
 
+const SECTIONS = ['intro', 'qualify', 'objection', 'close', 'wrap_up']
+
 const randomFrom = (arr, seed) => arr[seed % arr.length]
 
 export const buildDummyConversations = () => {
@@ -81,6 +83,10 @@ export const buildDummyMessages = (convo) => {
             sender: 'assistant',
             text: randomFrom(ASSISTANT_LINES, convo.id + i),
             timestamp,
+            meta: {
+                section: randomFrom(SECTIONS, convo.id + i),
+                confidence: (0.6 + ((convo.id + i) % 4) * 0.1).toFixed(2),
+            },
         })
     }
 

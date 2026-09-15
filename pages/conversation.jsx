@@ -32,9 +32,11 @@ export const ConversationPage = props => {
             messagesEndRef.current?.scrollIntoView({behavior: 'smooth'})
         }
 
+        /*
         if (messages.length > 8) {
             conversationRef.current.setMessages(prev => prev.slice(-8))
         }
+        */
     }
 
     const prevScrollYRef = useRef(0);

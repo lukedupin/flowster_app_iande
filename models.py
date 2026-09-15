@@ -44,6 +44,8 @@ class Conversation(models.Model):
             'profile':      self.profile,
             'conversation': self.conversation,
             'summary':      self.summary,
+            'scripts':      self.scripts,
+            'created_on':   self.created_on.isoformat(),
         }
 
     def summerize(self):

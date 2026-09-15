@@ -3,84 +3,21 @@ import {
     ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
     PieChart, Pie, Cell, BarChart,
 } from 'recharts'
-
-const DAYS_IN_RANGE = 30
-
-const SCRIPT_STATE_NAMES = ['intro', 'qualify', 'objection', 'close', 'wrap_up']
-const BLOG_URLS = [
-    '/blog/estate-planning-basics',
-    '/blog/life-insurance-101',
-    '/blog/trust-vs-will',
-    '/blog/probate-process',
-    '/blog/tax-benefits',
-]
+import * as Util from "../../src/helpers/util.js"
 
 const PIE_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4']
 
-const monthOptions = () => {
-    const options = []
-    const now = new Date()
-    for (let i = 0; i < 12; i++) {
-        options.push(new Date(now.getFullYear(), now.getMonth() - i, 1))
-    }
-    return options
-}
+const monthKey = (year, month) => `${year}-${month}`
+const monthLabel = (year, month) => new Date(year, month - 1, 1).toLocaleString('en-US', {month: 'long', year: 'numeric'})
 
-const monthKey = d => `${d.getFullYear()}-${d.getMonth()}`
-const monthLabel = d => d.toLocaleString('en-US', {month: 'long', year: 'numeric'})
-
-// Deterministic pseudo-random generator so a given month always renders the same dummy data
-const seededRandom = seed => {
-    let s = seed % 2147483647
-    if (s <= 0) {
-        s += 2147483646
-    }
-    return () => {
-        s = (s * 16807) % 2147483647
-        return (s - 1) / 2147483646
-    }
-}
-
-const hashSeed = str => {
-    let h = 0
-    for (let i = 0; i < str.length; i++) {
-        h = (h * 31 + str.charCodeAt(i)) | 0
-    }
-    return Math.abs(h) || 1
-}
-
-const buildDummyData = (month) => {
-    const rand = seededRandom(hashSeed(monthKey(month)))
-
-    const chatsPerDay = []
-    for (let day = 1; day <= DAYS_IN_RANGE; day++) {
-        const date = new Date(month.getFullYear(), month.getMonth(), day)
-        chatsPerDay.push({
-            date: date.toLocaleString('en-US', {month: 'short', day: 'numeric'}),
-            chats: Math.round(8 + rand() * 20),
-            avg_qa: Math.round((2 + rand() * 4) * 10) / 10,
-        })
-    }
-
-    const scriptStates = SCRIPT_STATE_NAMES.map(name => ({
-        name,
-        value: Math.round(6 + rand() * 30),
-    }))
-
-    const topBlogs = BLOG_URLS.map(url => ({
-        url,
-        count: Math.round(5 + rand() * 25),
-    })).sort((a, b) => b.count - a.count)
-
-    return {chatsPerDay, scriptStates, topBlogs}
-}
-
-const buildContextMarkdown = (month, chatsPerDay, scriptStates, topBlogs) => {
+const buildContextMarkdown = (year, month, chatsPerDay, scriptStates, topBlogs) => {
     const totalChats = chatsPerDay.reduce((sum, d) => sum + d.chats, 0)
-    const avgQa = chatsPerDay.reduce((sum, d) => sum + d.avg_qa, 0) / chatsPerDay.length
+    const avgQa = chatsPerDay.length
+        ? chatsPerDay.reduce((sum, d) => sum + d.avg_qa, 0) / chatsPerDay.length
+        : 0
 
     const lines = [
-        `# Dashboard for ${monthLabel(month)}`,
+        `# Dashboard for ${monthLabel(year, month)}`,
         '',
         `**Total chats (last 30 days):** ${totalChats}`,
         `**Average Q/A per chat:** ${avgQa.toFixed(1)}`,
@@ -98,24 +35,50 @@ const buildContextMarkdown = (month, chatsPerDay, scriptStates, topBlogs) => {
 export const DashboardCard = props => {
     const {showToast} = props
     const onContextChange = props.onContextChange || (() => {})
-    const [selectedMonth, setSelectedMonth] = useState(monthOptions()[0])
 
-    const months = useMemo(monthOptions, [])
-    const {chatsPerDay, scriptStates, topBlogs} = useMemo(
-        () => buildDummyData(selectedMonth),
-        [monthKey(selectedMonth)]
-    )
+    const [months, setMonths] = useState([])
+    const [selectedKey, setSelectedKey] = useState(null)
 
     useEffect(() => {
-        onContextChange(buildContextMarkdown(selectedMonth, chatsPerDay, scriptStates, topBlogs))
-    }, [chatsPerDay, scriptStates, topBlogs])
+        Util.fetch_js('/api/iande/dashboard_stats', null, js => {
+            setMonths(js.months)
+            if (js.months.length > 0) {
+                const latest = js.months[js.months.length - 1]
+                setSelectedKey(monthKey(latest.year, latest.month))
+            }
+        }, showToast)
+    }, [])
+
+    const orderedMonths = useMemo(() => [...months].reverse(), [months])
+    const selected = months.find(m => monthKey(m.year, m.month) === selectedKey) || null
+
+    useEffect(() => {
+        if (!selected) {
+            return
+        }
+
+        onContextChange(buildContextMarkdown(
+            selected.year, selected.month, selected.chats_per_day, selected.script_states, selected.top_blogs
+        ))
+    }, [selected])
 
     const handleMonthChange = e => {
-        const month = months.find(m => monthKey(m) === e.target.value)
-        if (month) {
-            setSelectedMonth(month)
-        }
+        setSelectedKey(e.target.value)
     }
+
+    if (!selected) {
+        return (
+            <div className="flex group justify-start sm:pr-12">
+                <div className="w-full bg-white text-gray-900 rounded-2xl rounded-tr-sm border border-gray-200 px-4 py-4 shadow-sm">
+                    <p className="text-sm text-gray-500">Loading dashboard...</p>
+                </div>
+            </div>
+        )
+    }
+
+    const chatsPerDay = selected.chats_per_day
+    const scriptStates = selected.script_states
+    const topBlogs = selected.top_blogs
 
     return (
         <div className="flex group justify-start sm:pr-12">
@@ -124,11 +87,13 @@ export const DashboardCard = props => {
                     <h2 className="text-lg font-semibold text-gray-900">Dashboard</h2>
 
                     <select
-                        value={monthKey(selectedMonth)}
+                        value={selectedKey}
                         onChange={handleMonthChange}
                         className="w-40 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        {months.map(m => (
-                            <option key={monthKey(m)} value={monthKey(m)}>{monthLabel(m)}</option>
+                        {orderedMonths.map(m => (
+                            <option key={monthKey(m.year, m.month)} value={monthKey(m.year, m.month)}>
+                                {monthLabel(m.year, m.month)}
+                            </option>
                         ))}
                     </select>
                 </div>
@@ -154,8 +119,11 @@ export const DashboardCard = props => {
                         <ResponsiveContainer width="100%" height={220}>
                             <PieChart>
                                 <Tooltip />
-                                <Legend />
-                                <Pie data={scriptStates} dataKey="value" nameKey="name" outerRadius={80} label>
+                                <Legend
+                                    position="right"
+                                    formatter={(value, entry) => `${value}: ${entry.payload.value}`}
+                                />
+                                <Pie data={scriptStates} dataKey="value" nameKey="name" outerRadius={80}>
                                     {scriptStates.map((entry, idx) => (
                                         <Cell key={entry.name} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
                                     ))}

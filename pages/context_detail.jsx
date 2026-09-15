@@ -6,23 +6,39 @@ import {MarkdownViewer} from "../../src/components/markdown_viewer.jsx"
 import {ChatPanel} from "../components/chat_panel.jsx"
 
 export const ContextDetail = props => {
-    const {contexts, showToast} = props
-    const onUpdate = props.onUpdate || (() => {})
+    const {showToast} = props
     const navigate = useNavigate()
     const {id} = useParams()
 
-    const context = contexts.find(c => c.id === Number(id))
+    const [context, setContext] = useState(null)
+    const [loading, setLoading] = useState(true)
 
-    const [title, setTitle] = useState(context?.title || '')
-    const [key, setKey] = useState(context?.key || '')
-    const [content, setContent] = useState(context?.content || '')
+    const [title, setTitle] = useState('')
+    const [key, setKey] = useState('')
+    const [content, setContent] = useState('')
     const [mode, setMode] = useState('preview')
 
     useEffect(() => {
-        setTitle(context?.title || '')
-        setKey(context?.key || '')
-        setContent(context?.content || '')
-    }, [context?.id])
+        setLoading(true)
+        Util.fetch_js('/api/iande/context', {id: Number(id)}, js => {
+            setContext(js.context)
+            setTitle(js.context.title)
+            setKey(js.context.key)
+            setContent(js.context.content)
+            setLoading(false)
+        }, () => {
+            setContext(null)
+            setLoading(false)
+        })
+    }, [id])
+
+    if (loading) {
+        return (
+            <div className="p-4 sm:p-6">
+                <p className="text-sm text-gray-500">Loading...</p>
+            </div>
+        )
+    }
 
     if (!context) {
         return (
@@ -35,8 +51,10 @@ export const ContextDetail = props => {
     const dirty = content !== context.content || title !== context.title || key !== context.key
 
     const handleSave = () => {
-        onUpdate(context.id, {title, key, content})
-        showToast?.('Saved', 'success')
+        Util.fetch_js('/api/iande/context/update', {id: context.id, title, key, content}, js => {
+            setContext(js.context)
+            showToast?.('Saved', 'success')
+        }, showToast)
     }
 
     return (
