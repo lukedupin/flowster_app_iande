@@ -1,49 +1,111 @@
-import React, {useState} from 'react'
-import {useNavigate} from "react-router-dom"
-import * as Util from "../../src/helpers/util.js"
-import {Pagination, paginateArray} from "../../src/components/pagination.jsx"
-import {STATUS, buildDummyConversations, initials} from "../components/dummy_conversations.js"
+import React, {useState, useRef, useEffect} from 'react'
+import {ChatTextArea} from "../../src/components/chat_text_area.jsx";
+import {Conversation} from "../../src/components/conversation.jsx";
+import {ConversationCard} from "../components/conversation_card.jsx";
 
-const PER_PAGE = 10
+const CONVERSATIONS_SYSTEM_PROMPT = 'You are answering questions about the data in the CONVERSATIONS context below -- '
+    + 'the list of chat conversations, their status, chat counts, and summaries. '
+    + 'Base your answers only on that data, and say so if something asked about isn\'t covered by it.'
 
 export const ConversationPage = props => {
     const {showToast} = props
-    const navigate = useNavigate()
-    const [conversations] = useState(buildDummyConversations)
-    const [page, setPage] = useState(1)
+    const [scrollLock, setScrollLock] = useState(false)
+    const [conversationsContext, setConversationsContext] = useState('')
 
-    const page_conversations = paginateArray(conversations, page, PER_PAGE)
+    const [session, setSession] = useState(null)
+
+    const messagesEndRef = useRef(null)
+    const chatTextAreaRef = useRef(null)
+    const conversationRef = useRef(null)
+
+    useEffect(() => {
+        conversationRef.current?.setMessages([
+            {
+                sender: 'conversations',
+                timestamp: new Date().toISOString(),
+            }
+        ])
+    }, [])
+
+    const handleMessageChange = (messages) => {
+        if (scrollLock) {
+            messagesEndRef.current?.scrollIntoView({behavior: 'smooth'})
+        }
+
+        if (messages.length > 8) {
+            conversationRef.current.setMessages(prev => prev.slice(-8))
+        }
+    }
+
+    const prevScrollYRef = useRef(0);
+    useEffect(() => {
+        const onScroll = () => {
+            const currentScrollY = window.scrollY ?? window.pageYOffset;
+            const prevScrollY = prevScrollYRef.current;
+
+            if (currentScrollY > prevScrollY) {
+                //
+            } else if (currentScrollY < prevScrollY) {
+                setScrollLock(false)
+            }
+
+            prevScrollYRef.current = currentScrollY;
+        };
+
+        window.addEventListener('scroll', onScroll, {passive: true});
+
+        return () => window.removeEventListener('scroll', onScroll);
+    }, [])
+
+    const handleFullRetry = (content) => {
+        conversationRef.current.handleRetry(content)
+    }
+
+    const handleLocalRetry = (content) => {
+        chatTextAreaRef.current.setMessage(content)
+    }
+
+    const handleSend = (message, model) => {
+        if ( conversationRef.current === null ) {
+            return
+        }
+
+        setScrollLock(true)
+        const contexts = [
+            {name: 'system', content: CONVERSATIONS_SYSTEM_PROMPT, file_type: 'text'},
+            {name: 'CONVERSATIONS', content: conversationsContext, file_type: 'text'},
+        ]
+        conversationRef.current.handleSend(message, model, contexts, "/api/iande/chat")
+    }
 
     return (
-        <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900 px-4 pt-4 sm:px-6 sm:pt-6">Conversations</h2>
+        <div className="flex flex-col">
+            <div className="flex flex-col pb-32">
+                <Conversation
+                    ref={conversationRef}
+                    session={session}
+                    onMessageChange={handleMessageChange}
+                    onRetry={handleLocalRetry}
+                    onStreamEnd={() => setScrollLock(false)}
+                    onSessionChange={setSession}
+                    showToast={showToast}
+                >
+                    <ConversationCard
+                        sender="conversations"
+                        showToast={showToast}
+                        onContextChange={setConversationsContext}
+                        />
+                </Conversation>
 
-            <ul role="list" className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white overflow-hidden mx-4 sm:mx-6">
-                {page_conversations.map(convo => (
-                    <li key={convo.id}
-                        className="flex items-center gap-4 px-4 py-4 sm:px-6 hover:bg-gray-50 cursor-pointer"
-                        onClick={() => navigate(`/i_e/conversation/${convo.id}`)}>
-                        <div className={Util.classNames(
-                            "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white",
-                            STATUS[convo.status].color
-                        )}>
-                            {initials(convo.name)}
-                        </div>
+                <div ref={messagesEndRef}/>
+            </div>
 
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-gray-900 truncate">{convo.name}</p>
-                            <p className="text-sm text-gray-500 truncate">{convo.summary}</p>
-                            <p className="text-xs text-gray-400 mt-1">{convo.chat_count} chats · {convo.date}</p>
-                        </div>
-                    </li>
-                ))}
-            </ul>
-
-            <Pagination
-                page={page}
-                per_page={PER_PAGE}
-                total={conversations.length}
-                onPage={setPage}
+            <ChatTextArea
+                ref={chatTextAreaRef}
+                className="border-t pl-3 sticky bottom-0 z-10"
+                onSend={handleSend}
+                onRetry={handleFullRetry}
+                showToast={showToast}
             />
         </div>
     )

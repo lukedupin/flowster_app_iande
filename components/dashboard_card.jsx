@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react'
+import React, {useEffect, useMemo, useState} from 'react'
 import {
     ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
     PieChart, Pie, Cell, BarChart,
@@ -52,12 +52,12 @@ const hashSeed = str => {
 const buildDummyData = (month) => {
     const rand = seededRandom(hashSeed(monthKey(month)))
 
-    const changesPerDay = []
+    const chatsPerDay = []
     for (let day = 1; day <= DAYS_IN_RANGE; day++) {
         const date = new Date(month.getFullYear(), month.getMonth(), day)
-        changesPerDay.push({
+        chatsPerDay.push({
             date: date.toLocaleString('en-US', {month: 'short', day: 'numeric'}),
-            changes: Math.round(8 + rand() * 20),
+            chats: Math.round(8 + rand() * 20),
             avg_qa: Math.round((2 + rand() * 4) * 10) / 10,
         })
     }
@@ -72,18 +72,43 @@ const buildDummyData = (month) => {
         count: Math.round(5 + rand() * 25),
     })).sort((a, b) => b.count - a.count)
 
-    return {changesPerDay, scriptStates, topBlogs}
+    return {chatsPerDay, scriptStates, topBlogs}
+}
+
+const buildContextMarkdown = (month, chatsPerDay, scriptStates, topBlogs) => {
+    const totalChats = chatsPerDay.reduce((sum, d) => sum + d.chats, 0)
+    const avgQa = chatsPerDay.reduce((sum, d) => sum + d.avg_qa, 0) / chatsPerDay.length
+
+    const lines = [
+        `# Dashboard for ${monthLabel(month)}`,
+        '',
+        `**Total chats (last 30 days):** ${totalChats}`,
+        `**Average Q/A per chat:** ${avgQa.toFixed(1)}`,
+        '',
+        '## Script States Touched',
+        ...scriptStates.map(s => `- ${s.name}: ${s.value}`),
+        '',
+        '## Top Blogs by Chat Interactions',
+        ...topBlogs.map(b => `- ${b.url}: ${b.count}`),
+    ]
+
+    return lines.join('\n')
 }
 
 export const DashboardCard = props => {
     const {showToast} = props
+    const onContextChange = props.onContextChange || (() => {})
     const [selectedMonth, setSelectedMonth] = useState(monthOptions()[0])
 
     const months = useMemo(monthOptions, [])
-    const {changesPerDay, scriptStates, topBlogs} = useMemo(
+    const {chatsPerDay, scriptStates, topBlogs} = useMemo(
         () => buildDummyData(selectedMonth),
         [monthKey(selectedMonth)]
     )
+
+    useEffect(() => {
+        onContextChange(buildContextMarkdown(selectedMonth, chatsPerDay, scriptStates, topBlogs))
+    }, [chatsPerDay, scriptStates, topBlogs])
 
     const handleMonthChange = e => {
         const month = months.find(m => monthKey(m) === e.target.value)
@@ -101,7 +126,7 @@ export const DashboardCard = props => {
                     <select
                         value={monthKey(selectedMonth)}
                         onChange={handleMonthChange}
-                        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        className="w-40 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         {months.map(m => (
                             <option key={monthKey(m)} value={monthKey(m)}>{monthLabel(m)}</option>
                         ))}
@@ -109,15 +134,15 @@ export const DashboardCard = props => {
                 </div>
 
                 <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Changes per Day (Last 30 Days)</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Chats per Day (Last 30 Days)</h3>
                     <ResponsiveContainer width="100%" height={220}>
-                        <ComposedChart data={changesPerDay}>
+                        <ComposedChart data={chatsPerDay}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="date" interval={2} tick={{fontSize: 10}} />
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Bar dataKey="changes" name="Changes" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="chats" name="Chats" fill="#6366f1" radius={[4, 4, 0, 0]} />
                             <Line type="monotone" dataKey="avg_qa" name="Avg Q/A" stroke="#f59e0b" strokeWidth={2} />
                         </ComposedChart>
                     </ResponsiveContainer>

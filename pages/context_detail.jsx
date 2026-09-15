@@ -1,9 +1,9 @@
 import React, {useEffect, useState} from 'react'
 import {useNavigate, useParams} from "react-router-dom"
-import {ArrowLeftIcon, LinkIcon} from "@heroicons/react/24/outline"
+import {ArrowLeftIcon} from "@heroicons/react/24/outline"
 import * as Util from "../../src/helpers/util.js"
 import {MarkdownViewer} from "../../src/components/markdown_viewer.jsx"
-import {ContextUrlModal} from "../components/context_url_modal.jsx"
+import {ChatPanel} from "../components/chat_panel.jsx"
 
 export const ContextDetail = props => {
     const {contexts, showToast} = props
@@ -16,15 +16,12 @@ export const ContextDetail = props => {
     const [title, setTitle] = useState(context?.title || '')
     const [key, setKey] = useState(context?.key || '')
     const [content, setContent] = useState(context?.content || '')
-    const [url, setUrl] = useState(context?.url || '')
     const [mode, setMode] = useState('preview')
-    const [urlModalOpen, setUrlModalOpen] = useState(false)
 
     useEffect(() => {
         setTitle(context?.title || '')
         setKey(context?.key || '')
         setContent(context?.content || '')
-        setUrl(context?.url || '')
     }, [context?.id])
 
     if (!context) {
@@ -35,16 +32,11 @@ export const ContextDetail = props => {
         )
     }
 
-    const dirty = content !== context.content || title !== context.title || key !== context.key || url !== (context.url || '')
+    const dirty = content !== context.content || title !== context.title || key !== context.key
 
     const handleSave = () => {
-        onUpdate(context.id, {title, key, content, url})
+        onUpdate(context.id, {title, key, content})
         showToast?.('Saved', 'success')
-    }
-
-    const handleUrlSave = new_url => {
-        setUrl(new_url)
-        setUrlModalOpen(false)
     }
 
     return (
@@ -57,16 +49,6 @@ export const ContextDetail = props => {
                 </button>
 
                 <div className="flex items-center gap-2 shrink-0">
-                    <button
-                        onClick={() => setUrlModalOpen(true)}
-                        className={Util.classNames(
-                            "inline-flex items-center gap-1 rounded-md border px-3 py-2 text-sm font-medium",
-                            url ? "border-blue-300 text-blue-600 hover:bg-blue-50" : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                        )}>
-                        <LinkIcon className="h-4 w-4" />
-                        URL
-                    </button>
-
                     <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-sm">
                         <button
                             onClick={() => setMode('preview')}
@@ -96,7 +78,7 @@ export const ContextDetail = props => {
             </div>
 
             <div className="mx-4 sm:mx-6 rounded-lg border border-gray-200 bg-white overflow-hidden">
-                <div className="px-4 pt-4 pb-4 border-b border-gray-200 space-y-4">
+                <div className="px-4 pt-4 pb-4 space-y-4">
                     {mode === 'edit' ? (
                         <>
                             <div>
@@ -144,11 +126,32 @@ export const ContextDetail = props => {
                 )}
             </div>
 
-            <ContextUrlModal
-                open={urlModalOpen}
-                url={url}
-                onClose={() => setUrlModalOpen(false)}
-                onSave={handleUrlSave}
+            <ChatPanel
+                showToast={showToast}
+                apiUrl="/api/iande/chat_json"
+                conversationToggle={false}
+                payloadExtra={{detail: {title, key, content}, structure: 'Context'}}
+                onUpdateContext={(name, payload) => {
+                    if ( name !== 'DETAIL' ) {
+                        return
+                    }
+                    try {
+                        const updated = JSON.parse(payload)
+                        if ( 'title' in updated ) {
+                            setTitle(updated.title)
+                        }
+                        if ( 'key' in updated ) {
+                            setKey(updated.key)
+                        }
+                        if ( 'content' in updated ) {
+                            setContent(updated.content)
+                        }
+                        showToast?.('Chat update applied', 'success')
+                    }
+                    catch ( err ) {
+                        showToast?.('Failed to apply chat update', 'error')
+                    }
+                }}
             />
         </div>
     )

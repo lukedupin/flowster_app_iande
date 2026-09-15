@@ -5,9 +5,14 @@ import {Conversation} from "../../src/components/conversation.jsx";
 import * as Util from "../../src/helpers/util.js";
 import {DashboardCard} from "../components/dashboard_card.jsx";
 
+const DASHBOARD_SYSTEM_PROMPT = 'You are answering questions about the data in the DASHBOARD context below -- '
+    + 'chats per day, average Q/A per chat, script states touched, and top blogs by chat interactions, all over '
+    + 'the last 30 days. Base your answers only on that data, and say so if something asked about isn\'t covered by it.'
+
 export const Dashboard = props => {
     const {showToast} = props
     const [scrollLock, setScrollLock] = useState(false)
+    const [dashboardContext, setDashboardContext] = useState('')
 
     const [session, setSession] = useState(null)
 
@@ -72,7 +77,11 @@ export const Dashboard = props => {
         }
 
         setScrollLock(true)
-        conversationRef.current.handleSend(message, model, [], "/api/iande/run_script")
+        const contexts = [
+            {name: 'system', content: DASHBOARD_SYSTEM_PROMPT, file_type: 'text'},
+            {name: 'DASHBOARD', content: dashboardContext, file_type: 'text'},
+        ]
+        conversationRef.current.handleSend(message, model, contexts, "/api/iande/chat")
     }
 
     const handleUpdateContext = (contents) => {
@@ -99,6 +108,8 @@ export const Dashboard = props => {
                 >
                     <DashboardCard
                         sender="dashboard"
+                        showToast={showToast}
+                        onContextChange={setDashboardContext}
                         />
                 </Conversation>
 

@@ -4,7 +4,7 @@ import json
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse
 
-from flowster import FlowSheet, FlowSessionJwt
+from flowster import FlowProfile, FlowSheet, FlowSessionJwt
 from flowster.core import util
 from flowster.core.util import sse_stream, context_to_kwargs
 from flowster.tools.script_agent import script_agent
@@ -27,7 +27,7 @@ def gen_flow_sheet( header ):
         return FlowSheet(
             meta['title'],
             FlowSessionJwt.create(JWT_AUTH)( header ),
-            FLOW_PROFILE )
+            FlowProfile( FLOW_PROFILE ))
 
 
 def dict_to_markdown(d: dict) -> str:

@@ -4,21 +4,18 @@ export const INITIAL_CONTEXTS = [
         title: 'Company Overview',
         key: 'company_overview',
         content: '# Company Overview\n\nInsurance and Estates helps clients navigate **life insurance** and **estate planning** decisions.\n\n- Founded in 2015\n- Licensed in all 50 states\n- Specializes in term, whole, and final expense policies',
-        url: 'https://www.insuranceandestates.com/about',
     },
     {
         id: 2,
         title: 'Product FAQ',
         key: 'product_faq',
         content: '## Frequently Asked Questions\n\n**What is the difference between term and whole life?**\n\nTerm life covers a set number of years. Whole life covers you for life and builds cash value.',
-        url: '',
     },
     {
         id: 3,
         title: 'Pricing Sheet',
         key: 'pricing_sheet',
         content: '## Pricing\n\n| Plan | Monthly |\n| --- | --- |\n| Term 20yr | $25 |\n| Whole Life | $80 |',
-        url: '',
     },
 ]
 

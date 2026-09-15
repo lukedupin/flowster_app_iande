@@ -9,9 +9,12 @@ class Conversation(models.Model):
     id                  = models.AutoField(primary_key=True)
 
     uid                 = models.UUIDField(db_index=True, unique=True, default=uuid.uuid4, editable=False, help_text="A unique identifier for this conversation")
+    url                 = models.CharField(max_length=256, db_index=True, blank=True, default='', help_text="The URL this conversation is running through")
     profile             = models.JSONField(default=dict, help_text="The profile data associated with this conversation", blank=True)
     conversation        = models.JSONField(default=list, help_text="Array of message dicts making up this conversation", blank=True)
-    summary             = models.JSONField(default=dict, help_text="Summary of this conversation", blank=True)
+    summary             = models.TextField(default='', help_text="Markdown summary of this conversation", blank=True)
+    scripts             = models.JSONField(default=dict, help_text="Dict of script name to the number of responses from that script", blank=True)
+    conversation_count  = models.IntegerField(default=0, help_text="A count associated with this conversation")
 
     updated_on          = models.DateTimeField(auto_now=True)
     created_on          = models.DateTimeField(auto_now_add=True)
@@ -37,6 +40,7 @@ class Conversation(models.Model):
     def toJson(self):
         return {
             'uid':          str(self.uid),
+            'url':          str(self.url),
             'profile':      self.profile,
             'conversation': self.conversation,
             'summary':      self.summary,
@@ -48,36 +52,12 @@ class Conversation(models.Model):
 
     @staticmethod
     def customAdmin():
-        #Inline convo log
-        class ConvLogInline(admin.TabularInline):
-            model = ConvLog
-            extra = 0
-            readonly_fields = ('created_on',)
-            fields = ('type', 'payload', 'created_on')
-
         class Admin(admin.ModelAdmin):
             list_display = ('summerize', 'created_on')
             fields = ('uid', 'profile', 'conversation', 'summary')
             readonly_fields = ('uid', 'created_on', 'updated_on',)
-            inlines = [ConvLogInline]
 
         return Admin
-
-
-class ConvLog(models.Model):
-    id = models.AutoField(primary_key=True)
-
-    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='logs')
-    type = models.CharField(max_length=64)
-    payload = models.JSONField(default=dict, blank=True)
-
-    created_on = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        app_label = 'iande'
-
-    def __str__(self):
-        return f"{self.type} -- {self.created_on}"
 
 
 class BlogCache(models.Model):
@@ -176,6 +156,66 @@ class VoiceClone(models.Model):
         class Admin(admin.ModelAdmin):
             list_display = ('name', 'exaggeration', 'cfg_weight', 'created_on')
             fields = ('uid', 'name', 'voice_model', 'file', 'exaggeration', 'cfg_weight')
+            readonly_fields = ('uid', 'created_on', 'updated_on',)
+
+        return Admin
+
+
+class Context(models.Model):
+    id                  = models.AutoField(primary_key=True)
+
+    uid                 = models.UUIDField(db_index=True, unique=True, default=uuid.uuid4, editable=False, help_text="A unique identifier for this context")
+    title               = models.CharField(max_length=255, help_text="Display title for this context")
+    key                 = models.SlugField(max_length=128, db_index=True, unique=True, help_text="Unique machine-readable key for this context")
+    content             = models.TextField(blank=True, default='', help_text="Markdown content of this context")
+
+    updated_on          = models.DateTimeField(auto_now=True)
+    created_on          = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = 'iande'
+
+    #Returns a friendly name for the admin interface
+    def __str__(self):
+        return self.title
+
+    @staticmethod
+    async def getByKey(key):
+        try:
+            return await sync_to_async( Context.objects.get )( key=key )
+        except Context.DoesNotExist:
+            return None
+
+    # Convert my data to json
+    def toJson(self, chat_js=False):
+        base = {
+            'title':   self.title,
+            'key':     self.key,
+            'content': self.content,
+        }
+
+        js = {
+            'id':  self.id,
+            'uid': str(self.uid),
+        }
+
+        return base if chat_js else {**base, **js}
+
+    @classmethod
+    def toStructure(cls):
+        instance = cls()
+        js = instance.toJson(chat_js=True)
+        return {
+            name: cls._meta.get_field(name).help_text
+            for name in js.keys()
+        }
+
+    @staticmethod
+    def customAdmin():
+        class Admin(admin.ModelAdmin):
+            list_display = ('title', 'key', 'created_on')
+            search_fields = ('title', 'key')
+            fields = ('uid', 'title', 'key', 'content')
             readonly_fields = ('uid', 'created_on', 'updated_on',)
 
         return Admin
