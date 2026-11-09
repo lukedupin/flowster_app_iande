@@ -13,6 +13,7 @@ import {BlogCachePage} from "./pages/blog_cache.jsx";
 import {ScriptPage} from "./pages/script.jsx";
 import {VoicesPage} from "./pages/voices.jsx";
 import {VoiceDetail} from "./pages/voice_detail.jsx";
+import {ActiveOutreachPage} from "./pages/active_outreach.jsx";
 
 const PLACES = [
     { name: 'Dashboard', path: '/i_e/dashboard', icon: 'ChartPieIcon' },
@@ -22,6 +23,7 @@ const PLACES = [
     { name: 'Blog Cache', path: '/i_e/blog_cache', icon: 'DocumentTextIcon' },
     { name: 'Script', path: '/i_e/script', icon: 'CommandLineIcon' },
     { name: 'Voices', path: '/i_e/voices', icon: 'MicrophoneIcon' },
+    { name: 'Active Outreach', path: '/i_e/active_outreach', icon: 'MegaphoneIcon' },
 ]
 
 export const IAndE = props => {
@@ -59,7 +61,8 @@ export const IAndE = props => {
                     <Route path="script" element={<ScriptPage search={search} showToast={showToast} />} />
                     <Route path="voices" element={<VoicesPage search={search} showToast={showToast} />} />
                     <Route path="voices/:id" element={<VoiceDetail search={search} showToast={showToast} />} />
-                    <Route path="*" element={<Navigate to="dashboard" replace />} />
+                    <Route path="active_outreach" element={<ActiveOutreachPage search={search} showToast={showToast} />} />
+                    <Route path="*"element={<Navigate to="dashboard" replace />} />
                 </Routes>
             </div>
         </div>

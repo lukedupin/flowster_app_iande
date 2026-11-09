@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react'
 import {useNavigate, useParams} from "react-router-dom"
 import {ArrowLeftIcon, ArrowUpTrayIcon, PlayIcon} from "@heroicons/react/24/outline"
-import * as Network from "../helper/network.jsx"
+import * as Network from "../../authentication/helpers/network.jsx"
 import * as Util from "../../src/helpers/util.js"
 
 const toSnakeCase = str => str
