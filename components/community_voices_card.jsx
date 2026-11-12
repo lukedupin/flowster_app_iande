@@ -29,6 +29,51 @@ const TOPICS = [
         snippet: 'Clear up what no-exam policies really mean for price and approval.'},
 ]
 
+// Finance influencers whose audiences we listen to. Static placeholder data. A category can show up
+// under more than one channel, `count` is how many times it came up in that channel's comments.
+const CHANNELS = [
+    {id: 'c1', name: 'Caleb Hammer', initials: 'CH', color: '#ef4444', videos: 14, comments: 8420, moods: [
+        {name: 'Frustrated', pct: 24, color: '#ef4444'},
+        {name: 'Anxious', pct: 19, color: '#f97316'},
+        {name: 'Skeptical', pct: 16, color: '#f59e0b'},
+        {name: 'Overwhelmed', pct: 14, color: '#a78bfa'},
+        {name: 'Hopeful', pct: 13, color: '#34d399'},
+        {name: 'Curious', pct: 9, color: '#60a5fa'},
+        {name: 'Grateful', pct: 5, color: '#10b981'},
+    ], categories: [
+        {topic: 't2', count: 62},
+        {topic: 't5', count: 18},
+        {topic: 't4', count: 11},
+    ]},
+    {id: 'c2', name: 'Graham Stephan', initials: 'GS', color: '#3b82f6', videos: 22, comments: 12960, moods: [
+        {name: 'Curious', pct: 28, color: '#60a5fa'},
+        {name: 'Skeptical', pct: 20, color: '#f59e0b'},
+        {name: 'Hopeful', pct: 18, color: '#34d399'},
+        {name: 'Grateful', pct: 12, color: '#10b981'},
+        {name: 'Anxious', pct: 10, color: '#f97316'},
+        {name: 'Frustrated', pct: 8, color: '#ef4444'},
+        {name: 'Overwhelmed', pct: 4, color: '#a78bfa'},
+    ], categories: [
+        {topic: 't1', count: 71},
+        {topic: 't2', count: 44},
+        {topic: 't7', count: 21},
+    ]},
+    {id: 'c3', name: 'Andrei Jikh', initials: 'AJ', color: '#10b981', videos: 17, comments: 6310, moods: [
+        {name: 'Curious', pct: 31, color: '#60a5fa'},
+        {name: 'Hopeful', pct: 22, color: '#34d399'},
+        {name: 'Skeptical', pct: 15, color: '#f59e0b'},
+        {name: 'Grateful', pct: 14, color: '#10b981'},
+        {name: 'Overwhelmed', pct: 9, color: '#a78bfa'},
+        {name: 'Anxious', pct: 6, color: '#f97316'},
+        {name: 'Frustrated', pct: 3, color: '#ef4444'},
+    ], categories: [
+        {topic: 't1', count: 40},
+        {topic: 't3', count: 33},
+        {topic: 't6', count: 28},
+        {topic: 't8', count: 17},
+    ]},
+]
+
 const INITIAL_DRAFTS = [
     {id: 'd1', type: 'Video script', title: 'Pre-roll: What families ask us most', icon: FilmIcon, topics: ['t1', 't2']},
     {id: 'd2', type: 'Blog post', title: 'Estate planning questions, answered', icon: DocumentTextIcon, topics: ['t3']},
@@ -38,7 +83,7 @@ const INITIAL_DRAFTS = [
 const topicById = id => TOPICS.find(t => t.id === id)
 
 const TopicChip = props => {
-    const {topic, onRemove, draggable = true, compact} = props
+    const {topic, count, onRemove, draggable = true, compact} = props
 
     return (
         <span
@@ -51,7 +96,7 @@ const TopicChip = props => {
             className={`inline-flex select-none items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-sm text-gray-800 shadow-sm ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}>
             <span className="h-2 w-2 rounded-full" style={{backgroundColor: topic.color}} />
             {topic.name}
-            {!compact && <span className="text-xs text-gray-400">{topic.mentions}</span>}
+            {!compact && <span className="text-xs text-gray-400">{count ?? topic.mentions}</span>}
             {onRemove && (
                 <button onClick={onRemove} className="text-gray-400 hover:text-gray-600">
                     <XMarkIcon className="h-3.5 w-3.5" />
@@ -147,14 +192,50 @@ export const CommunityVoicesCard = () => {
             <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-5">
                 <div className="lg:col-span-2">
                     <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-gray-400">
-                        <Bars3Icon className="h-3.5 w-3.5" /> Topics · drag into content
+                        <Bars3Icon className="h-3.5 w-3.5" /> Voices · drag a category into content
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                        {TOPICS.map(topic => (
-                            <TopicChip key={topic.id} topic={topic} />
+                    <div className="space-y-3">
+                        {CHANNELS.map(channel => (
+                            <div key={channel.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <span
+                                            className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
+                                            style={{backgroundColor: channel.color}}>
+                                            {channel.initials}
+                                        </span>
+                                        <span className="text-sm font-semibold text-gray-900">{channel.name}</span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-lg font-semibold text-gray-900">{channel.videos}</span>
+                                        <span className="ml-1 text-xs text-gray-500">videos · last 30 days</span>
+                                    </div>
+                                </div>
+                                <p className="mt-3 text-xs text-gray-500">
+                                    <span className="font-semibold text-gray-900">{channel.comments.toLocaleString()}</span> comments scraped
+                                </p>
+                                <div className="mt-1.5 flex h-2 overflow-hidden rounded-full">
+                                    {channel.moods.map(mood => (
+                                        <div key={mood.name} title={`${mood.name} ${mood.pct}%`} style={{width: `${mood.pct}%`, backgroundColor: mood.color}} />
+                                    ))}
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                                    {channel.moods.map(mood => (
+                                        <span key={mood.name} className="inline-flex items-center gap-1 text-xs text-gray-600">
+                                            <span className="h-2 w-2 rounded-full" style={{backgroundColor: mood.color}} />
+                                            {mood.name} <span className="text-gray-400">{mood.pct}%</span>
+                                        </span>
+                                    ))}
+                                </div>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {channel.categories.map(cat => (
+                                        <TopicChip key={cat.topic} topic={topicById(cat.topic)} count={cat.count} />
+                                    ))}
+                                </div>
+                            </div>
                         ))}
                     </div>
-                    <p className="mt-3 text-xs text-gray-400">The number is how many times the topic came up. Hover a topic to see an example quote.</p>
+                    <p className="mt-3 text-xs text-gray-400">The number is how many times the category came up in that channel.</p>
                 </div>
 
                 <div className="space-y-3 lg:col-span-3">

@@ -1,5 +1,12 @@
 import React, {useState} from 'react'
 
+// Fake funnels for the dropdown (it does not change the chart)
+const FUNNELS = [
+    {key: 'term', label: 'Term Life'},
+    {key: 'estate', label: 'Estate Planning'},
+    {key: 'final', label: 'Final Expense'},
+]
+
 // Buckets (static placeholder data). `col` is the horizontal position; buckets that
 // share a column are stacked.
 const BUCKETS = [
@@ -124,6 +131,7 @@ const deltaColor = stat => {
 export const OutreachFlowCard = props => {
     const {onSelect} = props
     const [hover, setHover] = useState(null)
+    const [funnel, setFunnel] = useState('term')
 
     const totalUsers = BUCKETS.reduce((t, b) => t + b.count, 0)
 
@@ -138,7 +146,7 @@ export const OutreachFlowCard = props => {
         return l.from === hover.id || l.to === hover.id
     }
 
-    let info = <p className="text-xs text-gray-500">Hover a bucket or a flow · click for the leads</p>
+    let info = null
     if (hover?.type === 'node') {
         const b = LAYOUT.byId[hover.id]
         info = <p className="text-xs text-gray-500"><span className="font-medium text-gray-900">{b.name}</span> · {b.count} users · {((b.count / totalUsers) * 100).toFixed(1)}% of all</p>
@@ -158,7 +166,17 @@ export const OutreachFlowCard = props => {
                     <h3 className="text-base font-semibold text-gray-900">Active Outreach</h3>
                     <p className="text-sm text-gray-500">{totalUsers.toLocaleString()} users across {BUCKETS.length} buckets, and how they move between them</p>
                 </div>
-                <div className="min-h-[1.5rem] text-right">{info}</div>
+                <div className="flex items-center gap-3">
+                    <div className="text-right">{info}</div>
+                    <select
+                        value={funnel}
+                        onChange={e => setFunnel(e.target.value)}
+                        className="w-44 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        {FUNNELS.map(f => (
+                            <option key={f.key} value={f.key}>{f.label}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             <div className="mt-4 overflow-x-auto">

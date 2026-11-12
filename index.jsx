@@ -14,6 +14,7 @@ import {ScriptPage} from "./pages/script.jsx";
 import {VoicesPage} from "./pages/voices.jsx";
 import {VoiceDetail} from "./pages/voice_detail.jsx";
 import {ActiveOutreachPage} from "./pages/active_outreach.jsx";
+import {ManagedOutreachPage} from "./pages/managed_outreach.jsx";
 
 const PLACES = [
     { name: 'Dashboard', path: '/i_e/dashboard', icon: 'ChartPieIcon' },
@@ -24,6 +25,7 @@ const PLACES = [
     { name: 'Script', path: '/i_e/script', icon: 'CommandLineIcon' },
     { name: 'Voices', path: '/i_e/voices', icon: 'MicrophoneIcon' },
     { name: 'Active Outreach', path: '/i_e/active_outreach', icon: 'MegaphoneIcon' },
+    { name: 'Managed Outreach', path: '/i_e/managed_outreach', icon: 'ViewColumnsIcon' },
 ]
 
 export const IAndE = props => {
@@ -62,6 +64,7 @@ export const IAndE = props => {
                     <Route path="voices" element={<VoicesPage search={search} showToast={showToast} />} />
                     <Route path="voices/:id" element={<VoiceDetail search={search} showToast={showToast} />} />
                     <Route path="active_outreach" element={<ActiveOutreachPage search={search} showToast={showToast} />} />
+                    <Route path="managed_outreach" element={<ManagedOutreachPage search={search} showToast={showToast} />} />
                     <Route path="*"element={<Navigate to="dashboard" replace />} />
                 </Routes>
             </div>
